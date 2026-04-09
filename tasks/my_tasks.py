@@ -1,19 +1,21 @@
-from typing import NoReturn, override
-from cv2.typing import MatLike
-import numpy as np
-import dataclasses
+from itertools import batched
 import re
+from typing import override
+from uuid import uuid4
+import json
+from PIL import Image
 import boto3
-from io import BytesIO
+from chandra.model.hf import generate_hf
+from chandra.model.schema import BatchInputItem
+import cv2
+from cv2.typing import MatLike
 from fireworks.core.firework import FWAction, FireTaskBase
 from loguru import logger
-import os
-from uuid import uuid4
-import base64
-import fitz
-from tasks.helpers import parse_s3_path, get_s3_content, _get_db
-import cv2
+import numpy as np
+import torch
+from transformers import AutoModelForImageTextToText, AutoProcessor
 
+from tasks.helpers import _get_db, get_s3_content, parse_s3_path
 class ImageProcessingTask(FireTaskBase):
     _fw_name = "Image Processing Task"
 
@@ -250,39 +252,27 @@ class DocumentExtractionTask(FireTaskBase):
         return None
 
     def _predict(self, contents: list[dict]):
-        from marker.converters.pdf import PdfConverter
-        from marker.models import create_model_dict
-        from marker.config.parser import ConfigParser
-        import io
-        from itertools import batched
 
-        config = {"output_format": "json"}
-        config_parser = ConfigParser(config)
-
-        converter = PdfConverter(
-            config=config_parser.generate_config_dict(),
-            artifact_dict=create_model_dict(),
-            processor_list=config_parser.get_processors(),
-            renderer=config_parser.get_renderer(),
-            llm_service=config_parser.get_llm_service(),
+        model = AutoModelForImageTextToText.from_pretrained(
+            "datalab-to/chandra-ocr-2",
+            dtype=torch.bfloat16,
+            device_map="auto",
         )
 
-        results = []
-        import json
+        model.eval()
+        model.processor = AutoProcessor.from_pretrained("datalab-to/chandra-ocr-2")
+        model.processor.tokenizer.padding_side = "left"
+
         contents_batches = batched(contents, 8)
         for contents_batch in contents_batches:
-            for item in contents_batch:
-                file_input = io.BytesIO(item["contents"])
-                rendered = converter(file_input)
-
-                # Use model_json() then parse back to dict to avoid the unhashable bug
-                rendered_dict = json.loads(rendered.model_dump_json())
-
+            batch: list[BatchInputItem] = [BatchInputItem(image=Image.fromarray(i["contents"])) for i in contents_batch]
+            results = generate_hf(batch, model)
+            for item in results:
+                rendered_dict = json.loads(item.model_dump_json())
                 rendered_dict["filename"] = item["filename"]
                 rendered_dict["impulse_identifier"] = item["impulse_identifier"]
-                results.append(rendered_dict)
 
-        return results
+                
 
     @staticmethod
     def is_s3_path(path: str) -> bool:

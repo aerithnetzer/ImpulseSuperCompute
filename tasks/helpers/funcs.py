@@ -1,4 +1,5 @@
 import re
+import numpy as np
 import boto3
 from io import BytesIO
 from pymongo import MongoClient
@@ -24,27 +25,21 @@ def parse_s3_path(s3_path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def get_s3_content(s3_path: str) -> bytes:
+def get_s3_content(s3_path: str) -> np.ndarray:
     """
-    Retrieve content from S3.
-
+    Retrieve content from S3 as a NumPy array.
     Args:
         s3_path: S3 URI
-
     Returns:
-        File content as bytes
+        File content as a NumPy array
     """
     bucket, key = parse_s3_path(s3_path)
-
     session = boto3.Session(profile_name="impulse")
     s3_client = session.client("s3")
-
-    # Download file content
     buffer = BytesIO()
     s3_client.download_fileobj(bucket, key, buffer)
     buffer.seek(0)
-
-    return buffer.read()
+    return np.frombuffer(buffer.getvalue(), dtype=np.uint8)
 
 
 def _get_db():

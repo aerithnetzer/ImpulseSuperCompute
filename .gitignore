@@ -45,3 +45,5 @@ infra/
 
 .env
 .coverage
+
+images/
