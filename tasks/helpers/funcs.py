@@ -1,4 +1,5 @@
 import re
+from PIL import Image
 import numpy as np
 import boto3
 from io import BytesIO
@@ -25,21 +26,26 @@ def parse_s3_path(s3_path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def get_s3_content(s3_path: str) -> np.ndarray:
+def get_s3_content(s3_path: str):
     """
-    Retrieve content from S3 as a NumPy array.
+    Retrieve content from S3 as a PIL Image.
+    
     Args:
         s3_path: S3 URI
+    
     Returns:
-        File content as a NumPy array
+        PIL Image object
     """
     bucket, key = parse_s3_path(s3_path)
     session = boto3.Session(profile_name="impulse")
     s3_client = session.client("s3")
+
     buffer = BytesIO()
     s3_client.download_fileobj(bucket, key, buffer)
     buffer.seek(0)
-    return np.frombuffer(buffer.getvalue(), dtype=np.uint8)
+
+    image = Image.open(buffer)
+    return image
 
 
 def _get_db():

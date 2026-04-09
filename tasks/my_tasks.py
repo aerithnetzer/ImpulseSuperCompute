@@ -262,17 +262,22 @@ class DocumentExtractionTask(FireTaskBase):
         model.eval()
         model.processor = AutoProcessor.from_pretrained("datalab-to/chandra-ocr-2")
         model.processor.tokenizer.padding_side = "left"
+        
+        output: list[dict] = []
 
         contents_batches = batched(contents, 8)
         for contents_batch in contents_batches:
-            batch: list[BatchInputItem] = [BatchInputItem(image=Image.fromarray(i["contents"])) for i in contents_batch]
+            batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch]
             results = generate_hf(batch, model)
             for item in results:
                 rendered_dict = json.loads(item.model_dump_json())
                 rendered_dict["filename"] = item["filename"]
                 rendered_dict["impulse_identifier"] = item["impulse_identifier"]
+                output.append(rendered_dict)
 
-                
+        return output
+
+                    
 
     @staticmethod
     def is_s3_path(path: str) -> bool:
