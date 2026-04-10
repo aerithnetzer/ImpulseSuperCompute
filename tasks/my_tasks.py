@@ -13,8 +13,7 @@ from fireworks.core.firework import FWAction, FireTaskBase
 from loguru import logger
 import numpy as np
 import torch
-from transformers import AutoModelForImageTextToText, AutoProcessor
-
+from chandra.model import InferenceManager
 from tasks.helpers import _get_db, get_s3_content
 
 class ImageProcessingTask(FireTaskBase):
@@ -254,23 +253,13 @@ class DocumentExtractionTask(FireTaskBase):
 
     def _predict(self, contents: list[dict]):
 
-        model = AutoModelForImageTextToText.from_pretrained(
-            "datalab-to/chandra-ocr-2",
-            dtype=torch.bfloat16,
-            device_map="auto",
-            offload_folder="offload",
-            offload_state_dict=True
-        )
-
-        model.eval()
-        model.processor = AutoProcessor.from_pretrained("datalab-to/chandra-ocr-2",)
-        model.processor.tokenizer.padding_side = "left"
+        manager = InferenceManager(method="vllm")
         
         output: list[dict] = []
         contents_batches = batched(contents, 8)
         for contents_batch in contents_batches: # For each batch in the batches
             batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch] # Define a batch as a list of InputItems for Chandra
-            results = generate_hf(batch, model) # Generate the results
+            results = manager.generate(batch) # Generate the results
             for item in results: # Generate a rendered dictionary
                 rendered_dict = json.loads(item.model_dump_json())
                 rendered_dict["filename"] = item["filename"]
