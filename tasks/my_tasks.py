@@ -16,9 +16,10 @@ import torch
 from chandra.model import InferenceManager
 from tasks.helpers import _get_db, get_s3_content
 from dataclasses import asdict
+from pymongo import UpdateOne
+
 class ImageProcessingTask(FireTaskBase):
     _fw_name = "Image Processing Task"
-
     @staticmethod
     def _save_content(output_path, content):
         import cv2
@@ -317,12 +318,25 @@ class DocumentExtractionTask(FireTaskBase):
 
     def save_to_mongo(self, model, collection):
         """Save any Pydantic model to MongoDB."""
+        operations = []
         for i, page in enumerate(model):
+            page = page.copy()
+            page.pop("images", None)
             page["document_extraction_model"] = "chandra"
-            collection.update_one(
-                {"$set": page},
-                upsert=True,
+            operations.append(
+                UpdateOne(
+                    {
+                        "page_number": i + 1,
+                        "impulse_identifier": page["impulse_identifier"],
+                    },
+                    {"$set": page},
+                    upsert=True,
+                )
             )
+        
+        if operations:
+            collection.bulk_write(operations)
+
         logger.success("Successfully uploaded all documents!")
         return True
 
