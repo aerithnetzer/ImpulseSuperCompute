@@ -321,7 +321,6 @@ class DocumentExtractionTask(FireTaskBase):
         operations = []
         for i, page in enumerate(model):
             page = page.copy()
-            page.pop("images", None)
             page["document_extraction_model"] = "chandra"
             operations.append(
                 UpdateOne(
