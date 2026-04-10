@@ -268,9 +268,9 @@ class DocumentExtractionTask(FireTaskBase):
         
         output: list[dict] = []
         contents_batches = batched(contents, 8)
-        for contents_batch in contents_batches:
-            batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch]
-            results = generate_hf(batch, model)
+        for contents_batch in contents_batches: # For each batch in the batches
+            batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch] # Define a batch as a list of InputItems for Chandra
+            results = generate_hf(batch, model) # Generate the results
             for item in results: # Generate a rendered dictionary
                 rendered_dict = json.loads(item.model_dump_json())
                 rendered_dict["filename"] = item["filename"]
