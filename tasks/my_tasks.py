@@ -263,7 +263,7 @@ class DocumentExtractionTask(FireTaskBase):
         )
 
         model.eval()
-        model.processor = AutoProcessor.from_pretrained("datalab-to/chandra-ocr-2")
+        model.processor = AutoProcessor.from_pretrained("datalab-to/chandra-ocr-2",)
         model.processor.tokenizer.padding_side = "left"
         
         output: list[dict] = []
@@ -318,11 +318,10 @@ class DocumentExtractionTask(FireTaskBase):
             return False
 
     @staticmethod
-    def load_jp2(contents: bytes):
+    def load_image(contents: bytes):
         import numpy as np
         import cv2
         from PIL import Image
-        from io import BytesIO
 
         arr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR_RGB)
@@ -372,7 +371,7 @@ class DocumentExtractionTask(FireTaskBase):
                 contents.append({
                 "filename": filename,
                 "page_number": i,
-                "contents": self.load_jp2(get_s3_content(path)),
+                "contents": get_s3_content(path),
                 "impulse_identifier": fw_spec["impulse_identifier"]
                 })
 

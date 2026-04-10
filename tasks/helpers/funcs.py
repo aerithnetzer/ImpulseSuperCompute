@@ -43,8 +43,14 @@ def get_s3_content(s3_path: str):
     buffer = BytesIO()
     s3_client.download_fileobj(bucket, key, buffer)
     buffer.seek(0)
-
+    from PIL import Image
     image = Image.open(buffer)
+    w, h = image.size
+    new_w = 800
+    new_h = int(h * (new_w / w))
+    out = image.resize((new_w, new_h), Image.LANCZOS)
+    print(out.size)
+    out.show()
     return image
 
 
