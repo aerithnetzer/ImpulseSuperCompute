@@ -255,6 +255,8 @@ class DocumentExtractionTask(FireTaskBase):
 
         manager = InferenceManager(method="vllm")
         output: list[dict] = []
+        print(contents[i])
+        exit()
         batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents] # Define a batch as a list of InputItems for Chandra
         results = manager.generate(batch) # Generate the results
         for i, item in enumerate(results): # Generate a rendered dictionary
