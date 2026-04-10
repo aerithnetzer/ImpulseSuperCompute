@@ -254,14 +254,14 @@ class DocumentExtractionTask(FireTaskBase):
     def _predict(self, contents: list[dict]):
 
         manager = InferenceManager(method="vllm")
-        
+        from chandra.output import BatchOut 
         output: list[dict] = []
         contents_batches = batched(contents, 8)
         for contents_batch in contents_batches: # For each batch in the batches
             batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch] # Define a batch as a list of InputItems for Chandra
             results = manager.generate(batch) # Generate the results
             for item in results: # Generate a rendered dictionary
-                rendered_dict = json.loads(item.model_dump_json())
+                rendered_dict = json.loads(item)
                 rendered_dict["filename"] = item["filename"]
                 rendered_dict["impulse_identifier"] = item["impulse_identifier"]
                 output.append(rendered_dict)
@@ -368,5 +368,4 @@ class DocumentExtractionTask(FireTaskBase):
             self.save_to_mongo(results, collection=_get_db()["colt"], s3_bucket=fw_spec.get("bucket"), s3_key=fw_spec.get("s3_key"))
 
         return FWAction()
-
 
