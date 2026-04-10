@@ -15,7 +15,8 @@ import numpy as np
 import torch
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
-from tasks.helpers import _get_db, get_s3_content, parse_s3_path
+from tasks.helpers import _get_db, get_s3_content
+
 class ImageProcessingTask(FireTaskBase):
     _fw_name = "Image Processing Task"
 
@@ -257,6 +258,8 @@ class DocumentExtractionTask(FireTaskBase):
             "datalab-to/chandra-ocr-2",
             dtype=torch.bfloat16,
             device_map="auto",
+            offload_folder="offload",
+            offload_state_dict=True
         )
 
         model.eval()
@@ -264,20 +267,17 @@ class DocumentExtractionTask(FireTaskBase):
         model.processor.tokenizer.padding_side = "left"
         
         output: list[dict] = []
-
         contents_batches = batched(contents, 8)
         for contents_batch in contents_batches:
             batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch]
             results = generate_hf(batch, model)
-            for item in results:
+            for item in results: # Generate a rendered dictionary
                 rendered_dict = json.loads(item.model_dump_json())
                 rendered_dict["filename"] = item["filename"]
                 rendered_dict["impulse_identifier"] = item["impulse_identifier"]
                 output.append(rendered_dict)
 
         return output
-
-                    
 
     @staticmethod
     def is_s3_path(path: str) -> bool:
@@ -352,13 +352,13 @@ class DocumentExtractionTask(FireTaskBase):
         This method runs the OCR task.
         This method looks for `path_array`.
         """
-        find_path_array_in: list[str] = fw_spec["find_path_array_in"]
-        path_array: list[str] = fw_spec[find_path_array_in]
+        find_path_array_in: list[str] = fw_spec["find_path_array_in"] # What key to get the array of S3 keys from
+        path_array: list[str] = fw_spec[find_path_array_in] # Get the list of S3 keys
         logger.debug(f"Value of `path_array`:{path_array}")
         logger.debug(f"Type of `path_array`:{path_array}")
         from itertools import batched
         i = 0
-        for batch in batched(path_array, n=4):
+        for batch in batched(path_array, n=4): 
             contents: list[dict] = []
             for path in batch:
                 logger.info(f"`path`: {path}")
@@ -366,17 +366,18 @@ class DocumentExtractionTask(FireTaskBase):
                 logger.info(f"Filename: {filename}")
                 if self.is_s3_path(path):
                     i+=1
-                    # Get content from S3
-                    logger.info("Now loading content from S3")
-                    contents.append({
-                    "filename": filename,
-                    "page_number": i,
-                    "contents": get_s3_content(path),
-                    "impulse_identifier": fw_spec["impulse_identifier"]
-                    })
+                    print(i)
+                # Get content from S3
+                logger.info("Now loading content from S3")
+                contents.append({
+                "filename": filename,
+                "page_number": i,
+                "contents": self.load_jp2(get_s3_content(path)),
+                "impulse_identifier": fw_spec["impulse_identifier"]
+                })
 
-                results = self._predict(contents)
-                self.save_to_mongo(results, collection=_get_db()["colt"], s3_bucket=fw_spec.get("bucket"), s3_key=fw_spec.get("s3_key"))
+            results = self._predict(contents)
+            self.save_to_mongo(results, collection=_get_db()["colt"], s3_bucket=fw_spec.get("bucket"), s3_key=fw_spec.get("s3_key"))
 
         return FWAction()
 
