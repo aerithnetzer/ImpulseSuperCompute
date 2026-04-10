@@ -254,7 +254,6 @@ class DocumentExtractionTask(FireTaskBase):
     def _predict(self, contents: list[dict]):
 
         manager = InferenceManager(method="vllm")
-        from chandra.output import BatchOut 
         output: list[dict] = []
         contents_batches = batched(contents, 8)
         for contents_batch in contents_batches: # For each batch in the batches
