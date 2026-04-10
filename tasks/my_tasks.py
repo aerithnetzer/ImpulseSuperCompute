@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from chandra.model import InferenceManager
 from tasks.helpers import _get_db, get_s3_content
-
+from dataclasses import asdict
 class ImageProcessingTask(FireTaskBase):
     _fw_name = "Image Processing Task"
 
@@ -260,7 +260,7 @@ class DocumentExtractionTask(FireTaskBase):
             batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch] # Define a batch as a list of InputItems for Chandra
             results = manager.generate(batch) # Generate the results
             for item in results: # Generate a rendered dictionary
-                rendered_dict = json.loads(item)
+                rendered_dict = asdict(item)
                 rendered_dict["filename"] = item["filename"]
                 rendered_dict["impulse_identifier"] = item["impulse_identifier"]
                 output.append(rendered_dict)
