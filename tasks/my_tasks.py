@@ -255,15 +255,13 @@ class DocumentExtractionTask(FireTaskBase):
 
         manager = InferenceManager(method="vllm")
         output: list[dict] = []
-        contents_batches = batched(contents, 8)
-        for contents_batch in contents_batches: # For each batch in the batches
-            batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents_batch] # Define a batch as a list of InputItems for Chandra
-            results = manager.generate(batch) # Generate the results
-            for i, item in enumerate(results): # Generate a rendered dictionary
-                rendered_dict = asdict(item)
-                rendered_dict["filename"] = contents_batch[i]["filename"]
-                rendered_dict["impulse_identifier"] = contents_batch[i]["impulse_identifier"]
-                output.append(rendered_dict)
+        batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents] # Define a batch as a list of InputItems for Chandra
+        results = manager.generate(batch) # Generate the results
+        for i, item in enumerate(results): # Generate a rendered dictionary
+            rendered_dict = asdict(item)
+            rendered_dict["filename"] = contents[i]["filename"]
+            rendered_dict["impulse_identifier"] = contents[i]["impulse_identifier"]
+            output.append(rendered_dict)
 
         return output
 
@@ -346,7 +344,7 @@ class DocumentExtractionTask(FireTaskBase):
         logger.debug(f"Type of `path_array`:{path_array}")
         from itertools import batched
         i = 0
-        for batch in batched(path_array, n=4): 
+        for batch in batched(path_array, n=32): 
             contents: list[dict] = []
             for path in batch:
                 logger.info(f"`path`: {path}")
