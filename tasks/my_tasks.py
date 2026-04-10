@@ -1,23 +1,19 @@
-from itertools import batched
 import re
 from typing import override
 from uuid import uuid4
-import json
-from PIL import Image
 import boto3
-from chandra.model.hf import generate_hf
 from chandra.model.schema import BatchInputItem
 import cv2
 from cv2.typing import MatLike
 from fireworks.core.firework import FWAction, FireTaskBase
 from loguru import logger
 import numpy as np
-import torch
 from chandra.model import InferenceManager
 from tasks.helpers import _get_db, get_s3_content
 from dataclasses import asdict
 from pymongo import UpdateOne
-
+import io
+import base64
 class ImageProcessingTask(FireTaskBase):
     _fw_name = "Image Processing Task"
     @staticmethod
@@ -316,16 +312,27 @@ class DocumentExtractionTask(FireTaskBase):
         img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         return img
 
+
     def save_to_mongo(self, model, collection):
         """Save any Pydantic model to MongoDB."""
         operations = []
         for i, page in enumerate(model):
             page = page.copy()
+            
+            # Convert PIL images to base64
+            images_b64 = {}
+            for filename, pil_image in page.pop("images", {}).items():
+                buffer = io.BytesIO()
+                pil_image.save(buffer, format="PNG")
+                images_b64[filename] = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            
+            page["images"] = images_b64
             page["document_extraction_model"] = "chandra"
+
             operations.append(
                 UpdateOne(
                     {
-                        "page_number": page["page_number"],
+                        "page_number": i + 1,
                         "impulse_identifier": page["impulse_identifier"],
                     },
                     {"$set": page},
