@@ -318,10 +318,8 @@ class DocumentExtractionTask(FireTaskBase):
 
     def save_to_mongo(self, model, collection, s3_bucket, s3_key):
         """Save any Pydantic model to MongoDB."""
-        print(model)
         for i, page in enumerate(model):
-            print(model)
-            model = model.pop('images')
+            page = page.pop('images')
             page["document_extraction_model"] = "chandra"
             collection.update_one(
                 {
