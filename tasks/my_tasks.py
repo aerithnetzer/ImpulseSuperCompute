@@ -255,13 +255,14 @@ class DocumentExtractionTask(FireTaskBase):
 
         manager = InferenceManager(method="vllm")
         output: list[dict] = []
-        print(contents[0].keys())
-        exit()
         batch: list[BatchInputItem] = [BatchInputItem(image=i["contents"], prompt_type="ocr_layout") for i in contents] # Define a batch as a list of InputItems for Chandra
         results = manager.generate(batch) # Generate the results
         for i, item in enumerate(results): # Generate a rendered dictionary
             rendered_dict = asdict(item)
+            print(contents[i]["impulse_identifier"])
+            exit()
             rendered_dict["filename"] = contents[i]["filename"]
+            rendered_dict["page_number"] = contents[i]["impulse_identifier"]
             rendered_dict["impulse_identifier"] = contents[i]["impulse_identifier"]
             output.append(rendered_dict)
 
