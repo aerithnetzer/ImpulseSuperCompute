@@ -259,8 +259,6 @@ class DocumentExtractionTask(FireTaskBase):
         results = manager.generate(batch) # Generate the results
         for i, item in enumerate(results): # Generate a rendered dictionary
             rendered_dict = asdict(item)
-            print(contents[i]["impulse_identifier"])
-            exit()
             rendered_dict["filename"] = contents[i]["filename"]
             rendered_dict["page_number"] = contents[i]["impulse_identifier"]
             rendered_dict["impulse_identifier"] = contents[i]["impulse_identifier"]
