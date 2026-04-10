@@ -326,7 +326,7 @@ class DocumentExtractionTask(FireTaskBase):
             operations.append(
                 UpdateOne(
                     {
-                        "page_number": i + 1,
+                        "page_number": page["page_number"],
                         "impulse_identifier": page["impulse_identifier"],
                     },
                     {"$set": page},
