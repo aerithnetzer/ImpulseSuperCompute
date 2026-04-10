@@ -260,7 +260,7 @@ class DocumentExtractionTask(FireTaskBase):
         for i, item in enumerate(results): # Generate a rendered dictionary
             rendered_dict = asdict(item)
             rendered_dict["filename"] = contents[i]["filename"]
-            rendered_dict["page_number"] = contents[i]["impulse_identifier"]
+            rendered_dict["page_number"] = contents[i]["page_number"]
             rendered_dict["impulse_identifier"] = contents[i]["impulse_identifier"]
             output.append(rendered_dict)
 
@@ -315,18 +315,11 @@ class DocumentExtractionTask(FireTaskBase):
         img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         return img
 
-    def save_to_mongo(self, model, collection, s3_bucket, s3_key):
+    def save_to_mongo(self, model, collection):
         """Save any Pydantic model to MongoDB."""
         for i, page in enumerate(model):
-            page = page.pop('images')
             page["document_extraction_model"] = "chandra"
             collection.update_one(
-                {
-                    "page_number": i+1,
-                    "impulse_identifier": page["impulse_identifier"],
-                    "s3_bucket": s3_bucket,
-                    "s3_key": s3_key
-                },
                 {"$set": page},
                 upsert=True,
             )
@@ -348,12 +341,10 @@ class DocumentExtractionTask(FireTaskBase):
         for batch in batched(path_array, n=32): 
             contents: list[dict] = []
             for path in batch:
+                i += 1
                 logger.info(f"`path`: {path}")
                 filename = path.split("/")[-1]
                 logger.info(f"Filename: {filename}")
-                if self.is_s3_path(path):
-                    i+=1
-                    print(i)
                 # Get content from S3
                 logger.info("Now loading content from S3")
                 contents.append({
@@ -365,7 +356,6 @@ class DocumentExtractionTask(FireTaskBase):
 
             results = self._predict(contents)
             print(results[0])
-            exit()
             self.save_to_mongo(results, collection=_get_db()["colt"])
 
         return FWAction()
