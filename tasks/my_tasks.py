@@ -364,7 +364,9 @@ class DocumentExtractionTask(FireTaskBase):
                 })
 
             results = self._predict(contents)
-            self.save_to_mongo(results, collection=_get_db()["colt"], s3_bucket=fw_spec.get("bucket"), s3_key=fw_spec.get("s3_key"))
+            print(results[0])
+            exit()
+            self.save_to_mongo(results, collection=_get_db()["colt"])
 
         return FWAction()
 
